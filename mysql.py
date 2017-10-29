@@ -151,21 +151,21 @@ class MySQLInventory(object):
             self.process_group(host['group'])
 
             if 'hosts' in self.inventory[host['group']]:
-                self.inventory[host['group']]['hosts'].append(host['host'])
+                self.inventory[host['group']]['hosts'].append(host['hostname'])
             else:
-                self.inventory[host['group']].append(host['host'])
+                self.inventory[host['group']].append(host['hostname'])
 
-            dns_name = host['host']
+            fqdn = host['hostname']
             if host['host_vars'] and host['host_vars'].strip():
                 try:
                    cleanhost = json.loads(host['host_vars'])
                 except:
-                   raise Exception('Host does not have valid JSON', host['host'], host['host_vars'])
+                   raise Exception('Host does not have valid JSON', fqdn, host['host_vars'])
             else:
                 cleanhost = dict()
-            cleanhost[self.facts_hostname_var] = host['hostname']
+            cleanhost['inventory_hostname'] = fqdn
 
-            self.cache[dns_name] = cleanhost
+            self.cache[fqdn] = cleanhost
             self.inventory = self.inventory
 
         # first fetch all the groups to check for possible childs
