@@ -121,8 +121,12 @@ class MySQLInventory(object):
         # Fetch the Group info
         if groupname not in self.inventory:
             cursor = self.conn.cursor(pymysql.cursors.DictCursor)
-            sql = "SELECT variables FROM `group` WHERE name = %s"
-            cursor.execute(sql, groupname)
+            if groupname.startswith( 'user-' ):
+                sql = "SELECT variables FROM `users` WHERE name = %d"
+                cursor.execute(sql, groupname.replace('user-', ''))
+            else:
+                sql = "SELECT variables FROM `groups` WHERE name = %s"
+                cursor.execute(sql, groupname)
             groupinfo = cursor.fetchone()
             self.inventory[groupname] = dict()
             if groupinfo['variables'] and groupinfo['variables'].strip():
