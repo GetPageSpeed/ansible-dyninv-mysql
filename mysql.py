@@ -24,8 +24,10 @@ Extended upon the Cobbler Inventory script.
 
 import argparse
 import ConfigParser
+import StringIO
 import os
 import re
+import sys
 from time import time
 import pymysql.cursors
 
@@ -94,9 +96,31 @@ class MySQLInventory(object):
         config = ConfigParser.SafeConfigParser()
         config.read(os.path.dirname(os.path.realpath(__file__)) + '/mysql.ini')
 
-        self.myconfig = dict(config.items('server'))
-        if 'port' in self.myconfig:
-            self.myconfig['port'] = config.getint('server', 'port')
+        envFile = os.path.realpath(os.path.dirname(os.path.realpath(__file__)) + '../../../.env')
+
+        if os.path.isfile(envFile):
+            envConfig = StringIO.StringIO()
+            envConfig.write('[dummysection]\n')
+            envConfig.write(open(envFile).read())
+            envConfig.seek(0, os.SEEK_SET)
+
+            cp = ConfigParser.ConfigParser()
+            cp.readfp(envConfig)
+
+            self.myconfig = dict()
+            self.myconfig['host'] = cp.get('dummysection', 'DB_HOST')
+            self.myconfig['db'] = cp.get('dummysection', 'DB_DATABASE')
+            self.myconfig['user'] = cp.get('dummysection', 'DB_USERNAME')
+            self.myconfig['passwd'] = cp.get('dummysection', 'DB_PASSWORD')
+            if cp.has_option('dummysection', 'DB_UNIX_SOCKET'):
+                self.myconfig['unix_socket'] = cp.get('dummysection', 'DB_UNIX_SOCKET')
+            else:
+                self.myconfig['port'] = cp.get('dummysection', 'DB_PORT')
+        else:
+            self.myconfig = dict(config.items('server'))
+            if 'port' in self.myconfig:
+                self.myconfig['port'] = config.getint('server', 'port')
+
 
         # Cache related
         cache_path = config.get('config', 'cache_path')
@@ -122,7 +146,7 @@ class MySQLInventory(object):
         if groupname not in self.inventory:
             cursor = self.conn.cursor(pymysql.cursors.DictCursor)
             if groupname.startswith( 'user-' ):
-                sql = "SELECT variables FROM `users` WHERE name = %d"
+                sql = "SELECT variables FROM `users` WHERE id = %s"
                 cursor.execute(sql, groupname.replace('user-', ''))
             else:
                 sql = "SELECT variables FROM `groups` WHERE name = %s"
@@ -169,6 +193,12 @@ class MySQLInventory(object):
                 cleanhost = dict()
             cleanhost['inventory_hostname'] = fqdn
 
+            if 'host' in host:
+                cleanhost['ansible_host'] = host['host']
+
+            if 'user' in host:
+                cleanhost['ansible_user'] = host['user']
+
             self.cache[fqdn] = cleanhost
             self.inventory = self.inventory
 
@@ -176,9 +206,9 @@ class MySQLInventory(object):
         gsql = """SELECT
                `gparent`.`name` as `parent`,
                `gchild`.`name` as `child`
-               FROM childgroups
-               LEFT JOIN `group` `gparent` on `childgroups`.`parent_id` = `gparent`.`id`
-               LEFT JOIN `group` `gchild` on `childgroups`.`child_id` = `gchild`.`id`
+               FROM child_groups
+               LEFT JOIN `groups` `gparent` on `child_groups`.`parent_id` = `gparent`.`id`
+               LEFT JOIN `groups` `gchild` on `child_groups`.`child_id` = `gchild`.`id`
                ORDER BY `parent`;"""
 
         cursor.execute(gsql)
