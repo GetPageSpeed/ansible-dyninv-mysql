@@ -196,8 +196,8 @@ class MySQLInventory(object):
             if 'host' in host:
                 cleanhost['ansible_host'] = host['host']
 
-            if 'user' in host:
-                cleanhost['ansible_user'] = host['user']
+            if 'username' in host:
+                cleanhost['ansible_user'] = host['username']
 
             self.cache[fqdn] = cleanhost
             self.inventory = self.inventory
